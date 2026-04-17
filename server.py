@@ -1,15 +1,56 @@
 """
 HaUI Counseling Chat Server
-Flask + Socket.IO real-time chat
+Flask + Socket.IO real-time chat with Auth
 """
 
-from flask import Flask, send_from_directory, request
+from flask import Flask, send_from_directory, request, jsonify, url_for, redirect
 from flask_socketio import SocketIO, emit
-import os, time, threading, re
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import os, time, threading, re, uuid
 
 app = Flask(__name__, static_folder='public', static_url_path='')
 app.config['SECRET_KEY'] = 'haui-secret-2024'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'public/uploads'
+
+# Ensure upload directory exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# ===================== MODELS =====================
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    student_id = db.Column(db.String(20))
+    class_name = db.Column(db.String(50))
+    avatar_url = db.Column(db.String(255), default='/images/haui-logo.png')
+    role = db.Column(db.String(20), default='student') # 'student' or 'counselor'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+# ===================== AUTH SETUP =====================
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login_page'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # ===================== STATE =====================
 # Persistent student sessions (survives refresh)
@@ -59,7 +100,6 @@ psychology_responses = {
     'default': 'Cảm ơn bạn đã chia sẻ. Tôi đã ghi nhận và tư vấn viên tâm lý chuyên nghiệp sẽ được thông báo. Trong khi chờ, hãy nhớ rằng: bạn đang làm rất tốt khi chọn tìm kiếm sự hỗ trợ. 💚'
 }
 
-
 def get_bot_response(message, branch):
     """Get automated bot response based on message content and branch"""
     responses = academic_responses if branch == 'academic' else psychology_responses
@@ -72,11 +112,102 @@ def get_bot_response(message, branch):
     return responses['default']
 
 
-# ===================== ROUTES =====================
+# ===================== AUTH ROUTES =====================
+
+@app.route('/login')
+def login_page():
+    return send_from_directory('public', 'login.html')
+
+@app.route('/register')
+def register_page():
+    return send_from_directory('public', 'register.html')
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.json
+    if User.query.filter_by(email=data.get('email')).first():
+        return jsonify({'error': 'Email đã tồn tại'}), 400
+    
+    user = User(
+        email=data.get('email'),
+        name=data.get('name'),
+        student_id=data.get('studentId'),
+        class_name=data.get('className')
+    )
+    user.set_password(data.get('password'))
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'message': 'Đăng ký thành công!'})
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    user = User.query.filter_by(email=data.get('email')).first()
+    if user and user.check_password(data.get('password')):
+        login_user(user, remember=True)
+        return jsonify({'message': 'Đăng nhập thành công', 'user': {
+            'name': user.name,
+            'avatarUrl': user.avatar_url
+        }})
+    return jsonify({'error': 'Email hoặc mật khẩu không chính xác'}), 401
+
+@app.route('/api/logout')
+@login_required
+def api_logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/api/profile', methods=['GET'])
+@login_required
+def get_profile():
+    return jsonify({
+        'name': current_user.name,
+        'email': current_user.email,
+        'studentId': current_user.student_id,
+        'className': current_user.class_name,
+        'avatarUrl': current_user.avatar_url
+    })
+
+@app.route('/api/profile/update', methods=['POST'])
+@login_required
+def update_profile():
+    data = request.json
+    current_user.name = data.get('name', current_user.name)
+    current_user.student_id = data.get('studentId', current_user.student_id)
+    current_user.class_name = data.get('className', current_user.class_name)
+    db.session.commit()
+    return jsonify({'message': 'Cập nhật thành công'})
+
+@app.route('/api/profile/upload-avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    if 'avatar' not in request.files:
+        return jsonify({'error': 'Không có tệp tin'}), 400
+    
+    file = request.files['avatar']
+    if file.filename == '':
+        return jsonify({'error': 'Chưa chọn tệp tin'}), 400
+
+    filename = secure_filename(f"user_{current_user.id}_{int(time.time())}_{file.filename}")
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(file_path)
+    
+    current_user.avatar_url = f"/uploads/{filename}"
+    db.session.commit()
+    
+    return jsonify({'avatarUrl': current_user.avatar_url})
+
+
+# ===================== CORE ROUTES =====================
 
 @app.route('/')
 def index():
     return send_from_directory('public', 'index.html')
+
+@app.route('/profile')
+@login_required
+def profile_page():
+    return send_from_directory('public', 'profile.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
@@ -87,13 +218,11 @@ def serve_static(path):
 
 @socketio.on('connect')
 def handle_connect():
-    print(f'[+] Client connected: {request.sid if hasattr(request, "sid") else "unknown"}')
+    print(f'[+] Client connected: {request.sid}')
 
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid
-
-    # If student disconnects
     if sid in sid_to_session:
         session_id = sid_to_session[sid]
         session = sessions.get(session_id)
@@ -104,41 +233,37 @@ def handle_disconnect():
                 emit('student:offline', {'sessionId': session_id}, to=counselor_sid)
         del sid_to_session[sid]
         broadcast_queue()
-        print(f'[-] Socket disconnected: {sid} (Session: {session_id[:8]}...)')
-
-    # If counselor disconnects (refresh/close)
     if sid in counselors:
-        c_name = counselors[sid].get('name')
-        # We DON'T revert to waiting immediately to allow for refresh/reconnect
-        for s_id, session in sessions.items():
-            if session.get('counselorSid') == sid:
-                session['counselorSid'] = None
-                # Keep status as 'chatting' so counselor can resume
-                # If they don't reconnect in a real app, we'd have a timeout here
         del counselors[sid]
         broadcast_queue()
-        print(f'[-] Counselor disconnected: {sid} ({c_name})')
-
 
 # ---- Student Events ----
 
 @socketio.on('student:join')
 def handle_student_join(data):
     sid = request.sid
-    session_id = data.get('sessionId')
+    # If user is logged in, use their info
+    if current_user.is_authenticated:
+        session_id = f"user_{current_user.id}"
+        name = current_user.name
+        student_id = current_user.student_id
+        class_name = current_user.class_name
+        avatar_url = current_user.avatar_url
+    else:
+        session_id = data.get('sessionId', str(uuid.uuid4()))
+        name = data.get('name', 'Ẩn danh')
+        student_id = data.get('studentId', 'N/A')
+        class_name = data.get('className', 'N/A')
+        avatar_url = '/images/haui-logo.png'
 
-    if not session_id:
-        return
-
-    # Check if session exists (reconnection)
-    is_new = session_id not in sessions
-    if is_new:
+    if session_id not in sessions:
         sessions[session_id] = {
             'sessionId': session_id,
             'socketSid': sid,
-            'name': data.get('name', 'Ẩn danh'),
-            'studentId': data.get('studentId', 'N/A'),
-            'className': data.get('className', 'N/A'),
+            'name': name,
+            'studentId': student_id,
+            'className': class_name,
+            'avatarUrl': avatar_url,
             'issue': data.get('issue', ''),
             'branch': data.get('branch', 'academic'),
             'status': 'waiting',
@@ -147,16 +272,11 @@ def handle_student_join(data):
             'messages': []
         }
     else:
-        # Update socket for old session
         sessions[session_id]['socketSid'] = sid
-        # Sync basic info if provided (optional)
-        if data.get('name'): sessions[session_id]['name'] = data['name']
-        if data.get('branch'): sessions[session_id]['branch'] = data['branch']
 
     sid_to_session[sid] = session_id
     session = sessions[session_id]
 
-    # Status & Queue
     waiting = [s for s in sessions.values() if s['status'] == 'waiting']
     emit('student:queued', {
         'position': len(waiting),
@@ -165,19 +285,12 @@ def handle_student_join(data):
         'counselorName': counselors.get(session['counselorSid'], {}).get('name') if session['counselorSid'] else None
     })
 
-    # Notify counselor of reconnection if chatting
     if session['counselorSid'] and session['counselorSid'] in counselors:
         emit('student:online', {'sessionId': session_id}, to=session['counselorSid'])
 
     broadcast_queue()
-
-    # Schedule bot greeting ONLY if it's a new session
-    if is_new:
+    if len(session['messages']) == 0:
         schedule_bot_greeting(session_id)
-        print(f'[+] New Student: {session["name"]} ({session["branch"]})')
-    else:
-        print(f'[*] Reconnected Student: {session["name"]}')
-
 
 @socketio.on('student:typing')
 def handle_student_typing():
@@ -188,7 +301,6 @@ def handle_student_typing():
         if session.get('counselorSid'):
             emit('student:typing', {'sessionId': session_id}, to=session['counselorSid'])
 
-
 @socketio.on('student:stopTyping')
 def handle_student_stop_typing():
     sid = request.sid
@@ -198,7 +310,6 @@ def handle_student_stop_typing():
         if session.get('counselorSid'):
             emit('student:stopTyping', {'sessionId': session_id}, to=session['counselorSid'])
 
-
 # ---- Counselor Events ----
 
 @socketio.on('counselor:join')
@@ -206,57 +317,21 @@ def handle_counselor_join(data):
     sid = request.sid
     c_name = data.get('name', 'Tư vấn viên')
     counselors[sid] = {'name': c_name}
-    
-    # RESUME: Re-bind any sessions that were handled by this counselor name
-    for s_id, session in sessions.items():
-        if session.get('counselorName') == c_name and session.get('counselorSid') is None:
-            session['counselorSid'] = sid
-            print(f'[+] Counselor {c_name} resumed session: {session["name"]}')
-
     broadcast_queue()
-    print(f'[+] Counselor joined: {c_name}')
-
 
 @socketio.on('counselor:accept')
 def handle_counselor_accept(data):
     sid = request.sid
     session_id = data.get('sessionId')
-
     if session_id in sessions:
         session = sessions[session_id]
         counselor_name = counselors.get(sid, {}).get('name', 'Tư vấn viên')
-        
         session['status'] = 'chatting'
         session['counselorSid'] = sid
-        session['counselorName'] = counselor_name # Store name for resume logic
-
-        counselor_name = counselors.get(sid, {}).get('name', 'Tư vấn viên')
-
-        # Notify student if online
+        session['counselorName'] = counselor_name
         if session['socketSid']:
             emit('counselor:connected', {'counselorName': counselor_name}, to=session['socketSid'])
-
         broadcast_queue()
-        print(f'[✓] Counselor accepted session: {session["name"]}')
-
-
-@socketio.on('counselor:typing')
-def handle_counselor_typing(data):
-    session_id = data.get('sessionId')
-    if session_id in sessions:
-        target_sid = sessions[session_id]['socketSid']
-        if target_sid:
-            emit('counselor:typing', {}, to=target_sid)
-
-
-@socketio.on('counselor:stopTyping')
-def handle_counselor_stop_typing(data):
-    session_id = data.get('sessionId')
-    if session_id in sessions:
-        target_sid = sessions[session_id]['socketSid']
-        if target_sid:
-            emit('counselor:stopTyping', {}, to=target_sid)
-
 
 # ---- Chat Events ----
 
@@ -264,170 +339,81 @@ def handle_counselor_stop_typing(data):
 def handle_chat_message(data):
     sid = request.sid
     message = data.get('message', '')
-
-    # Student sending message
     if sid in sid_to_session:
         session_id = sid_to_session[sid]
         session = sessions[session_id]
-        
-        # Save to history
-        msg_obj = {'text': message, 'type': 'sent', 'senderName': session['name'], 'time': time.time()}
+        msg_obj = {'text': message, 'type': 'sent', 'senderName': session['name'], 'time': time.time(), 'avatarUrl': session.get('avatarUrl')}
         session['messages'].append(msg_obj)
-
         counselor_sid = session.get('counselorSid')
         if counselor_sid and counselor_sid in counselors:
             emit('chat:message', {
                 'sessionId': session_id,
                 'message': message,
-                'senderName': session['name']
+                'senderName': session['name'],
+                'avatarUrl': session.get('avatarUrl')
             }, to=counselor_sid)
         else:
             schedule_bot_reply(session_id, message, session.get('branch', 'academic'))
-
-    # Counselor sending message
     elif sid in counselors:
-        # sessionId should come from counselor side
         student_session_id = data.get('sessionId')
         if student_session_id and student_session_id in sessions:
             session = sessions[student_session_id]
             counselor_name = counselors[sid]['name']
-
-            # Save to history
             msg_obj = {'text': message, 'type': 'received', 'senderName': counselor_name, 'time': time.time()}
             session['messages'].append(msg_obj)
-
             if session['socketSid']:
-                emit('chat:message', {
-                    'message': message,
-                    'senderName': counselor_name
-                }, to=session['socketSid'])
-
-
-@socketio.on('chat:end')
-def handle_chat_end(data=None):
-    sid = request.sid
-
-    # Student ending
-    if sid in sid_to_session:
-        session_id = sid_to_session[sid]
-        session = sessions[session_id]
-        counselor_sid = session.get('counselorSid')
-        if counselor_sid and counselor_sid in counselors:
-            emit('chat:ended', {'sessionId': session_id}, to=counselor_sid)
-        del sessions[session_id]
-        # Cleanup mapping might happen naturally on disconnect, but let's be safe
-        broadcast_queue()
-
-    # Counselor ending
-    elif sid in counselors and data:
-        session_id = data.get('sessionId')
-        if session_id and session_id in sessions:
-            session = sessions[session_id]
-            if session['socketSid']:
-                emit('chat:ended', {'message': 'Tư vấn viên đã kết thúc cuộc trò chuyện. Cảm ơn bạn đã sử dụng dịch vụ!'}, to=session['socketSid'])
-            del sessions[session_id]
-            broadcast_queue()
-
+                emit('chat:message', {'message': message, 'senderName': counselor_name}, to=session['socketSid'])
 
 # ===================== HELPERS =====================
 
 def broadcast_queue():
-    """Send updated queue to all counselors"""
     queue = [
         {
-            'id': sid,  # sessionId
+            'id': sid,
             'name': s['name'],
             'studentId': s['studentId'],
             'className': s['className'],
-            'issue': s['issue'],
             'branch': s['branch'],
             'status': s['status'],
             'isOnline': s['socketSid'] is not None,
-            'messages': s['messages'] # HISTORY FOR ADMIN
+            'messages': s['messages'],
+            'avatarUrl': s.get('avatarUrl')
         }
         for sid, s in sessions.items()
     ]
     for c_sid in counselors:
         socketio.emit('queue:update', queue, to=c_sid)
 
-
 def schedule_bot_greeting(session_id):
-    """Send bot greeting after a short delay"""
     def send_greeting():
         socketio.sleep(1.5)
         if session_id in sessions:
             session = sessions[session_id]
             branch = session.get('branch', 'academic')
             responses = academic_responses if branch == 'academic' else psychology_responses
-            
-            # Save bot message to history
             msg_obj = {'text': responses['greeting'], 'type': 'received', 'senderName': 'Bot', 'time': time.time()}
             session['messages'].append(msg_obj)
-
             if session['socketSid']:
                 socketio.emit('bot:message', {'message': responses['greeting']}, to=session['socketSid'])
-
-            # If no counselor after BOT_DELAY, send follow-up
-            def check_counselor():
-                socketio.sleep(BOT_DELAY)
-                if session_id in sessions:
-                    current_session = sessions[session_id]
-                    if not current_session.get('counselorSid'):
-                        msg = 'Hiện tại chưa có tư vấn viên online. Tôi sẽ cố gắng giải đáp cho bạn. Hãy hỏi tôi bất cứ điều gì!'
-                        # Save follow-up to history
-                        f_msg = {'text': msg, 'type': 'received', 'senderName': 'Bot', 'time': time.time()}
-                        current_session['messages'].append(f_msg)
-                        
-                        if current_session['socketSid']:
-                            socketio.emit('bot:message', {'message': msg}, to=current_session['socketSid'])
-
-            socketio.start_background_task(check_counselor)
-
     socketio.start_background_task(send_greeting)
 
-
 def schedule_bot_reply(session_id, message, branch):
-    """Schedule bot auto-reply when no counselor is available"""
     def send_reply():
         socketio.sleep(1.5)
         if session_id in sessions:
             session = sessions[session_id]
             if not session.get('counselorSid'):
                 response = get_bot_response(message, branch)
-                
-                # Save bot reply to history
                 msg_obj = {'text': response, 'type': 'received', 'senderName': 'Bot', 'time': time.time()}
                 session['messages'].append(msg_obj)
-                
                 if session['socketSid']:
                     socketio.emit('bot:message', {'message': response}, to=session['socketSid'])
-
     socketio.start_background_task(send_reply)
-
-
-def schedule_bot(session_id):
-    """Re-enable bot for a student who lost their counselor"""
-    def send_msg():
-        socketio.sleep(2)
-        if session_id in sessions:
-            session = sessions[session_id]
-            if not session.get('counselorSid'):
-                text = 'Tư vấn viên đã ngắt kết nối. Bot sẽ tiếp tục hỗ trợ bạn trong khi chờ tư vấn viên khác.'
-                msg_obj = {'text': text, 'type': 'received', 'senderName': 'Bot', 'time': time.time()}
-                session['messages'].append(msg_obj)
-                
-                if session['socketSid']:
-                    socketio.emit('bot:message', {'message': text}, to=session['socketSid'])
-
-    socketio.start_background_task(send_msg)
-
 
 # ===================== MAIN =====================
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     port = int(os.environ.get('PORT', 5000))
-    print(f"\n  HaUI Counseling Chat Server")
-    print(f"  -> http://localhost:{port}")
-    print(f"  -> Admin: http://localhost:{port}/admin.html")
-    print(f"  -> Login: admin / haui2026\n")
     socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)

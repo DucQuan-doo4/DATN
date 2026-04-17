@@ -9,6 +9,7 @@
   <title>Tư Vấn Trực Tuyến | Đại học Công nghiệp Hà Nội</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="images/haui-logo.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
@@ -23,9 +24,9 @@
             <span>Hanoi University of Industry</span>
           </div>
         </div>
-        <div class="header-actions">
-          <a href="admin.html" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
-            Tư vấn viên
+        <div id="userSection" class="header-actions">
+          <a href="login.html" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+            Đăng nhập
           </a>
         </div>
       </div>
@@ -94,11 +95,11 @@
         </div>
         <div class="input-group">
           <label for="studentId">Mã sinh viên</label>
-          <input type="text" id="studentId" class="input-field" placeholder="2021XXXXX (không bắt buộc)">
+          <input type="text" id="studentId" class="input-field" placeholder="202160xxxx">
         </div>
         <div class="input-group">
           <label for="className">Lớp</label>
-          <input type="text" id="className" class="input-field" placeholder="VD: CNTT1-K16 (không bắt buộc)">
+          <input type="text" id="className" class="input-field" placeholder="VD: CNTT1-K16">
         </div>
         <div class="input-group">
           <label for="issue">Mô tả vấn đề cần hỗ trợ *</label>
@@ -112,8 +113,35 @@
     </div>
   </div>
 
+  <script src="js/auth.js"></script>
   <script>
     let selectedBranchType = '';
+    let currentUser = null;
+
+    async function checkUser() {
+      currentUser = await Auth.checkAuth();
+      const userSection = document.getElementById('userSection');
+      
+      if (currentUser) {
+        userSection.innerHTML = `
+          <div class="user-profile-header" style="display: flex; align-items: center; gap: 12px;">
+            <div style="text-align: right; line-height: 1.2;">
+                <div style="font-weight: 600; color: #00468b;">${currentUser.name}</div>
+                <a href="profile.html" style="font-size: 0.75rem; color: #666; text-decoration: none;">Cài đặt hồ sơ</a>
+            </div>
+            <a href="profile.html">
+                <img src="${currentUser.avatarUrl}" style="width: 38px; height: 38px; border-radius: 50%; border: 2px solid #00468b; object-fit: cover;">
+            </a>
+            <button onclick="Auth.logout()" class="btn btn-outline" style="font-size: 0.7rem; padding: 4px 8px; margin-left: 5px;">Thoát</button>
+          </div>
+        `;
+        
+        // Pre-fill modal
+        document.getElementById('fullName').value = currentUser.name;
+        document.getElementById('studentId').value = currentUser.studentId || '';
+        document.getElementById('className').value = currentUser.className || '';
+      }
+    }
 
     function selectBranch(branch) {
       selectedBranchType = branch;
@@ -149,13 +177,13 @@
 
       if (!name || !issue) return;
 
-      // Save to sessionStorage and redirect to chat
       const studentData = {
         name,
         studentId: studentId || 'N/A',
         className: className || 'N/A',
         issue,
-        branch: selectedBranchType
+        branch: selectedBranchType,
+        avatarUrl: currentUser ? currentUser.avatarUrl : '/images/haui-logo.png'
       };
 
       sessionStorage.setItem('studentData', JSON.stringify(studentData));
@@ -166,6 +194,8 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeModal();
     });
+
+    checkUser();
   </script>
 </body>
 

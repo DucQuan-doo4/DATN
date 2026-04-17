@@ -2,3 +2,6 @@ flask
 flask-socketio
 gunicorn
 gevent
+flask-login
+flask-sqlalchemy
+werkzeug

@@ -62,9 +62,6 @@
     });
 
     socket.on('queue:update', (queue) => {
-      console.log('[Socket] Queue update received', queue.length);
-      
-      // Update local student data
       queue.forEach(s => {
         if (!students[s.id]) {
           students[s.id] = { 
@@ -77,14 +74,12 @@
           students[s.id].data = s;
           students[s.id].isOnline = s.isOnline;
           students[s.id].messages = s.messages || [];
-          
           if (students[s.id].status !== 'chatting') {
             students[s.id].status = s.status;
           }
         }
       });
 
-      // Cleanup removed sessions
       const currentIds = new Set(queue.map(s => s.id));
       Object.keys(students).forEach(id => {
         if (!currentIds.has(id)) {
@@ -99,7 +94,6 @@
 
       renderQueue();
 
-      // AUTO-RESUME session on load
       const lastStudent = sessionStorage.getItem('lastActiveStudent');
       if (lastStudent && students[lastStudent] && !activeStudentId) {
         selectStudent(lastStudent);
@@ -128,17 +122,19 @@
     });
 
     socket.on('chat:message', (data) => {
-      const { sessionId, message, senderName } = data;
+      const { sessionId, message, senderName, avatarUrl } = data;
       if (students[sessionId]) {
         students[sessionId].messages.push({
           text: message,
           type: 'received',
           sender: senderName,
-          time: new Date()
+          time: new Date(),
+          avatarUrl: avatarUrl
         });
 
         if (activeStudentId === sessionId) {
-          appendMessage(message, 'received', senderName?.charAt(0) || '👤');
+          const avatar = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : senderName?.charAt(0);
+          appendMessage(message, 'received', avatar);
           hideAdminTyping();
         }
       }
@@ -212,14 +208,18 @@
         ? '<span class="queue-item-badge academic">🎓</span>'
         : '<span class="queue-item-badge psychology">💚</span>';
 
+      const avatarContent = s.avatarUrl 
+        ? `<img src="${s.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : (s.name?.charAt(0) || '?');
+
       const onlineIndicator = student.isOnline
         ? '<span class="online-dot" title="Online" style="width:10px;height:10px;background:#10B981;border-radius:50%;border:2px solid white;position:absolute;bottom:0;right:0;"></span>'
         : '<span class="online-dot" title="Offline" style="width:10px;height:10px;background:#9CA3AF;border-radius:50%;border:2px solid white;position:absolute;bottom:0;right:0;"></span>';
 
       item.style.position = 'relative';
       item.innerHTML = `
-        <div style="position:relative;">
-          <div class="queue-item-avatar">${s.name?.charAt(0) || '?'}</div>
+        <div style="position:relative; width:40px; height:40px;">
+          <div class="queue-item-avatar">${avatarContent}</div>
           ${onlineIndicator}
         </div>
         <div class="queue-item-info">
@@ -253,7 +253,12 @@
     const avatar = document.getElementById('activeChatAvatar');
     const name = document.getElementById('activeChatName');
     const detail = document.getElementById('activeChatDetail');
-    if (avatar) avatar.textContent = s.name?.charAt(0) || '?';
+    
+    if (avatar) {
+      avatar.innerHTML = s.avatarUrl 
+        ? `<img src="${s.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : (s.name?.charAt(0) || '?');
+    }
     if (name) name.textContent = s.name;
     if (detail) detail.textContent = `MSV: ${s.studentId} | Lớp: ${s.className}`;
 
@@ -290,7 +295,15 @@
     addAdminSystemMessage(`📋 Vấn đề: "${student.data.issue}"`);
 
     student.messages.forEach((msg) => {
-      appendMessage(msg.text, msg.type, msg.type === 'sent' ? counselorName.charAt(0) : (msg.sender?.charAt(0) || '👤'));
+      let avatarContent;
+      if (msg.type === 'sent') {
+        avatarContent = counselorName.charAt(0);
+      } else {
+        avatarContent = msg.avatarUrl 
+            ? `<img src="${msg.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
+            : (msg.sender?.charAt(0) || '👤');
+      }
+      appendMessage(msg.text, msg.type, avatarContent);
     });
 
     if (typingEl) container.appendChild(typingEl);

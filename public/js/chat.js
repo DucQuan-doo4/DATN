@@ -10,7 +10,7 @@
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
   const statusBar = document.getElementById('statusBar');
-  const statusText = document.getElementById('statusText');
+  let statusText = document.getElementById('statusText');
   const typingIndicator = document.getElementById('typingIndicator');
   const chatTitle = document.getElementById('chatTitle');
   const chatSubtitle = document.getElementById('chatSubtitle');
@@ -31,12 +31,6 @@
     }
 
     studentData = JSON.parse(stored);
-
-    // PERSISTENCE: Get or Create Session ID
-    if (!localStorage.getItem('haui_chat_session_id')) {
-      localStorage.setItem('haui_chat_session_id', 'sess_' + Math.random().toString(36).substr(2, 9) + Date.now());
-    }
-    studentData.sessionId = localStorage.getItem('haui_chat_session_id');
 
     // Update header based on branch
     if (studentData.branch === 'academic') {
@@ -59,20 +53,24 @@
 
     socket.on('connect', () => {
       console.log('Connected to server');
-      // Register as student with persistent sessionId
+      // Register as student with data (including avatarUrl if exists)
       socket.emit('student:join', studentData);
     });
 
     // When placed in queue or reconnected
     socket.on('student:queued', (data) => {
-      // data: { position, history, status, counselorName }
-      
       // If we have history and the chat is empty, render it
-      if (data.history && data.history.length > 0 && chatMessages.children.length <= 1) { // 1 for typing indicator
+      if (data.history && data.history.length > 0 && chatMessages.children.length <= 1) { 
         data.history.forEach(msg => {
-          // msg: { text, type, senderName, time }
-          const avatar = msg.senderName === 'Bot' ? '🤖' : (msg.type === 'sent' ? studentData.name.charAt(0) : (msg.senderName?.charAt(0) || '👤'));
-          addMessage(msg.text, msg.type, msg.senderName === 'Bot' ? 'bot' : '', avatar, msg.time);
+          let avatarContent;
+          if (msg.senderName === 'Bot') {
+            avatarContent = '🤖';
+          } else if (msg.type === 'sent') {
+            avatarContent = studentData.avatarUrl ? `<img src="${studentData.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : studentData.name.charAt(0);
+          } else {
+            avatarContent = msg.avatarUrl ? `<img src="${msg.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (msg.senderName?.charAt(0) || '👤');
+          }
+          addMessage(msg.text, msg.type, msg.senderName === 'Bot' ? 'bot' : '', avatarContent, msg.time);
         });
       }
 
@@ -82,9 +80,6 @@
         statusText.textContent = `Đang chat với ${data.counselorName}`;
       } else if (data.status === 'waiting') {
         setStatus('waiting');
-        if (data.position > 0) {
-           addSystemMessage(`Bạn đang ở vị trí thứ ${data.position} trong hàng chờ...`);
-        }
       }
     });
 
@@ -109,7 +104,8 @@
     // Receive message from counselor
     socket.on('chat:message', (data) => {
       hideTyping();
-      addMessage(data.message, 'received', 'received', data.senderName?.charAt(0) || 'TV');
+      const avatar = data.avatarUrl ? `<img src="${data.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (data.senderName?.charAt(0) || 'TV');
+      addMessage(data.message, 'received', 'received', avatar);
     });
 
     // Counselor typing
@@ -128,7 +124,6 @@
       sendBtn.disabled = true;
       setStatus('waiting');
       statusText.textContent = 'Cuộc tư vấn đã kết thúc';
-      localStorage.removeItem('haui_chat_session_id'); // Clear session on end
     });
 
     socket.on('disconnect', () => {
@@ -156,7 +151,6 @@
       </div>
     `;
 
-    // Insert before typing indicator
     chatMessages.insertBefore(div, typingIndicator);
     scrollToBottom();
   }
@@ -174,7 +168,8 @@
     const text = messageInput.value.trim();
     if (!text || !socket) return;
 
-    addMessage(text, 'sent', '', studentData.name?.charAt(0) || '👤');
+    const myAvatar = studentData.avatarUrl ? `<img src="${studentData.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : studentData.name?.charAt(0);
+    addMessage(text, 'sent', '', myAvatar);
     socket.emit('chat:message', { message: text });
 
     messageInput.value = '';
@@ -217,7 +212,7 @@
         statusBar.innerHTML = `<span class="pulse green"></span><span id="statusText">Đang chat với tư vấn viên</span>`;
         break;
     }
-    statusText = document.getElementById('statusText'); // Re-init ref
+    statusText = document.getElementById('statusText');
   }
 
   // ---- Typing ----
@@ -258,7 +253,6 @@
     } catch (e) {
       console.error('Error ending chat:', e);
     }
-    localStorage.removeItem('haui_chat_session_id');
     sessionStorage.removeItem('studentData');
     window.location.href = 'index.html';
   };

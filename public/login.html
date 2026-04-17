@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - HaUI Counseling</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #00468b 0%, #0072bc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .auth-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .auth-container img {
+            width: 80px;
+            margin-bottom: 20px;
+        }
+        .auth-container h2 {
+            color: #00468b;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            border-color: #00468b;
+            outline: none;
+        }
+        .btn-auth {
+            background: #00468b;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-auth:hover {
+            background: #003366;
+        }
+        .auth-footer {
+            margin-top: 25px;
+            color: #666;
+        }
+        .auth-footer a {
+            color: #00468b;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .error-msg {
+            color: #e74c3c;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <img src="images/haui-logo.png" alt="HaUI Logo">
+        <h2>Đăng nhập</h2>
+        <div id="errorMessage" class="error-msg"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email sinh viên</label>
+                <input type="email" id="email" placeholder="example@sv.haui.edu.vn" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn-auth">Đăng nhập</button>
+        </form>
+        <div class="auth-footer">
+            Chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const success = await Auth.login(email, password);
+            if (success) {
+                window.location.href = 'index.html';
+            } else {
+                const err = document.getElementById('errorMessage');
+                err.textContent = 'Email hoặc mật khẩu không chính xác';
+                err.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

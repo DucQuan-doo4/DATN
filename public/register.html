@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - HaUI Counseling</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #00468b 0%, #0072bc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        .auth-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        .auth-container img {
+            width: 70px;
+            margin-bottom: 15px;
+        }
+        .auth-container h2 {
+            color: #00468b;
+            margin-bottom: 25px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            text-align: left;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            border-color: #00468b;
+            outline: none;
+        }
+        .btn-auth {
+            background: #00468b;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        .btn-auth:hover {
+            background: #003366;
+        }
+        .auth-footer {
+            margin-top: 25px;
+            color: #666;
+        }
+        .auth-footer a {
+            color: #00468b;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .error-msg {
+            color: #e74c3c;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <img src="images/haui-logo.png" alt="HaUI Logo">
+        <h2>Đăng ký tài khoản</h2>
+        <div id="errorMessage" class="error-msg"></div>
+        <form id="registerForm">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label for="name">Họ và tên</label>
+                    <input type="text" id="name" placeholder="Nguyễn Văn A" required>
+                </div>
+                <div class="form-group full-width">
+                    <label for="email">Email sinh viên</label>
+                    <input type="email" id="email" placeholder="example@sv.haui.edu.vn" required>
+                </div>
+                <div class="form-group">
+                    <label for="studentId">Mã sinh viên</label>
+                    <input type="text" id="studentId" placeholder="202160xxxx" required>
+                </div>
+                <div class="form-group">
+                    <label for="className">Lớp</label>
+                    <input type="text" id="className" placeholder="KTPM1" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Xác nhận MK</label>
+                    <input type="password" id="confirmPassword" placeholder="••••••••" required>
+                </div>
+            </div>
+            <button type="submit" class="btn-auth">Tạo tài khoản</button>
+        </form>
+        <div class="auth-footer">
+            Đã có tài khoản? <a href="login.html">Đăng nhập</a>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirmPassword').value;
+
+            if (password !== confirm) {
+                const err = document.getElementById('errorMessage');
+                err.textContent = 'Mật khẩu xác nhận không khớp';
+                err.style.display = 'block';
+                return;
+            }
+
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                studentId: document.getElementById('studentId').value,
+                className: document.getElementById('className').value,
+                password: password
+            };
+            
+            const result = await Auth.register(data);
+            if (result.success) {
+                alert('Đăng ký thành công! Hãy đăng nhập.');
+                window.location.href = 'login.html';
+            } else {
+                const err = document.getElementById('errorMessage');
+                err.textContent = result.error || 'Có lỗi xảy ra khi đăng ký';
+                err.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
