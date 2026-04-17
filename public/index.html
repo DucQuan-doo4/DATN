@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Hệ thống tư vấn trực tuyến - Đại học Công nghiệp Hà Nội (HaUI). Hỗ trợ học tập và tư vấn tâm lý cho sinh viên.">
+  <title>Tư Vấn Trực Tuyến | Đại học Công nghiệp Hà Nội</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="images/haui-logo.png">
+</head>
+
+<body>
+  <div class="landing">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <div class="header-brand">
+          <img src="images/haui-logo.png" alt="Logo HaUI" class="header-logo">
+          <div class="header-title">
+            <h1>ĐẠI HỌC CÔNG NGHIỆP HÀ NỘI</h1>
+            <span>Hanoi University of Industry</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a href="admin.html" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+            Tư vấn viên
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero container">
+      <img src="images/haui-logo.png" alt="Logo HaUI" class="hero-logo">
+      <h1>
+        Hệ Thống <span class="gradient-text">Tư Vấn Trực Tuyến</span>
+      </h1>
+      <p>Nền tảng hỗ trợ sinh viên HaUI — giải đáp thắc mắc học tập và tư vấn tâm lý miễn phí, bảo mật tuyệt đối.</p>
+    </section>
+
+    <!-- Branch Selection -->
+    <section class="branches container" id="branches">
+      <!-- Academic Branch -->
+      <div class="branch-card academic" onclick="selectBranch('academic')" id="branch-academic">
+        <div class="branch-icon"></div>
+        <h3>Hỗ Trợ Học Tập</h3>
+        <p>Giải đáp thắc mắc về chương trình đào tạo, lịch học, lịch thi, thủ tục hành chính, học bổng và các vấn đề
+          liên quan đến học tập tại trường.</p>
+        <div class="branch-tags">
+          <span class="branch-tag">Lịch học / Lịch thi</span>
+          <span class="branch-tag">Đăng ký môn học</span>
+          <span class="branch-tag">Thủ tục giấy tờ</span>
+          <span class="branch-tag">Học bổng</span>
+          <span class="branch-tag">Học phí</span>
+        </div>
+      </div>
+
+      <!-- Psychology Branch -->
+      <div class="branch-card psychology" onclick="selectBranch('psychology')" id="branch-psychology">
+        <div class="branch-icon"></div>
+        <h3>Tư Vấn Tâm Lý</h3>
+        <p>Chia sẻ và được lắng nghe về các vấn đề tâm lý, cảm xúc. Đội ngũ chuyên gia tâm lý sẵn sàng đồng hành cùng
+          bạn vượt qua khó khăn.</p>
+        <div class="branch-tags">
+          <span class="branch-tag">Áp lực học tập</span>
+          <span class="branch-tag">Stress & Lo âu</span>
+          <span class="branch-tag">Mối quan hệ</span>
+          <span class="branch-tag">Định hướng nghề</span>
+          <span class="branch-tag">Sức khỏe tinh thần</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <p>© 2024 Đại học Công nghiệp Hà Nội | <a href="https://www.haui.edu.vn/" target="_blank">haui.edu.vn</a></p>
+    </footer>
+  </div>
+
+  <!-- Student Info Modal -->
+  <div class="modal-overlay" id="infoModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Thông tin sinh viên</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <form id="studentForm" onsubmit="submitForm(event)">
+        <input type="hidden" id="selectedBranch" value="">
+        <div class="input-group">
+          <label for="fullName">Họ và tên *</label>
+          <input type="text" id="fullName" class="input-field" placeholder="Nguyễn Văn A" required>
+        </div>
+        <div class="input-group">
+          <label for="studentId">Mã sinh viên</label>
+          <input type="text" id="studentId" class="input-field" placeholder="2021XXXXX (không bắt buộc)">
+        </div>
+        <div class="input-group">
+          <label for="className">Lớp</label>
+          <input type="text" id="className" class="input-field" placeholder="VD: CNTT1-K16 (không bắt buộc)">
+        </div>
+        <div class="input-group">
+          <label for="issue">Mô tả vấn đề cần hỗ trợ *</label>
+          <textarea id="issue" class="input-field" placeholder="Hãy mô tả ngắn gọn vấn đề bạn cần tư vấn..."
+            required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 1rem;">
+          Bắt đầu tư vấn
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let selectedBranchType = '';
+
+    function selectBranch(branch) {
+      selectedBranchType = branch;
+      document.getElementById('selectedBranch').value = branch;
+
+      const modal = document.getElementById('infoModal');
+      const title = document.getElementById('modalTitle');
+
+      if (branch === 'academic') {
+        title.textContent = 'Hỗ Trợ Học Tập';
+      } else {
+        title.textContent = 'Tư Vấn Tâm Lý';
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('infoModal').classList.remove('active');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('infoModal').addEventListener('click', function (e) {
+      if (e.target === this) closeModal();
+    });
+
+    function submitForm(e) {
+      e.preventDefault();
+      const name = document.getElementById('fullName').value.trim();
+      const studentId = document.getElementById('studentId').value.trim();
+      const className = document.getElementById('className').value.trim();
+      const issue = document.getElementById('issue').value.trim();
+
+      if (!name || !issue) return;
+
+      // Save to sessionStorage and redirect to chat
+      const studentData = {
+        name,
+        studentId: studentId || 'N/A',
+        className: className || 'N/A',
+        issue,
+        branch: selectedBranchType
+      };
+
+      sessionStorage.setItem('studentData', JSON.stringify(studentData));
+      window.location.href = 'chat.html';
+    }
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+</body>
+
+</html>

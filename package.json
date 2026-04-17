@@ -1,0 +1,14 @@
+{
+  "name": "haui-counseling-chat",
+  "version": "1.0.0",
+  "description": "Website tư vấn trực tuyến - Đại học Công nghiệp Hà Nội",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.7.5"
+  }
+}

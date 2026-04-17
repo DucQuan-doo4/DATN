@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Phòng chat tư vấn trực tuyến - Đại học Công nghiệp Hà Nội">
+  <title>Chat Tư Vấn | HaUI</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="images/haui-logo.png">
+</head>
+
+<body>
+  <div class="chat-page">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <div class="header-brand">
+          <img src="images/haui-logo.png" alt="Logo HaUI" class="header-logo">
+          <div class="header-title">
+            <h1 id="chatTitle">Tư Vấn Trực Tuyến</h1>
+            <span id="chatSubtitle">Đại học Công nghiệp Hà Nội</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-danger" onclick="endChat()" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+            ✕ Kết thúc
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Status Bar -->
+    <div class="chat-status-bar bot" id="statusBar">
+      <span class="pulse purple"></span>
+      <span id="statusText">Đang kết nối...</span>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="chat-messages" id="chatMessages">
+      <!-- Messages will be injected here -->
+      <div class="typing-indicator" id="typingIndicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input-area">
+      <div class="chat-input-wrapper">
+        <textarea class="chat-input" id="messageInput" placeholder="Nhập tin nhắn..." rows="1"
+          onkeydown="handleKeyDown(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          ➤
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="js/chat.js"></script>
+</body>
+
+</html>

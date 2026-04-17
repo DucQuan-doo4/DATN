@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Trang quản lý tư vấn viên - Đại học Công nghiệp Hà Nội">
+  <title>Quản Lý Tư Vấn | HaUI Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="images/haui-logo.png">
+  <style>
+    /* Admin-specific overrides for Messenger-like layout */
+    .admin-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .admin-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .admin-sidebar {
+      height: 100%;
+    }
+
+    .admin-chat-area {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #activeChatContainer {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #activeChatContainer.active {
+      display: flex;
+    }
+
+    #adminChatMessages {
+      flex: 1;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Login Screen -->
+  <div class="login-page" id="loginPage">
+    <div class="card login-card">
+      <img src="images/haui-logo.png" alt="Logo HaUI" class="header-logo">
+      <h2>Đăng Nhập Tư Vấn Viên</h2>
+      <p class="subtitle">Hệ thống tư vấn trực tuyến - HaUI</p>
+      <form onsubmit="doLogin(event)">
+        <div class="input-group">
+          <label for="loginUser">Tên đăng nhập</label>
+          <input type="text" id="loginUser" class="input-field" placeholder="admin" required>
+        </div>
+        <div class="input-group">
+          <label for="loginPass">Mật khẩu</label>
+          <input type="password" id="loginPass" class="input-field" placeholder="••••••••" required>
+        </div>
+        <div class="input-group">
+          <label for="counselorName">Tên hiển thị</label>
+          <input type="text" id="counselorName" class="input-field" placeholder="VD: Cô Lan - Tư vấn viên" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 1rem;">
+          Đăng nhập
+        </button>
+      </form>
+      <p style="margin-top: 1.25rem; font-size: 0.8rem; color: var(--text-muted);">
+        <a href="index.html" style="color: var(--haui-red);">← Quay về trang chủ</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Admin Dashboard (hidden until login) -->
+  <div class="admin-wrapper" id="adminDashboard" style="display: none;">
+    <!-- Header -->
+    <header class="header" style="flex-shrink: 0;">
+      <div class="header-content">
+        <div class="header-brand">
+          <img src="images/haui-logo.png" alt="Logo HaUI" class="header-logo">
+          <div class="header-title">
+            <h1>Quản Lý Tư Vấn</h1>
+            <span id="adminGreeting">Xin chào, Tư vấn viên</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="doLogout()" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+            🚪 Đăng xuất
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="admin-body">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Danh sách sinh viên</h2>
+          <div class="sidebar-tabs">
+            <button class="sidebar-tab active" data-filter="all" onclick="filterQueue('all', this)">
+              Tất cả <span class="badge" id="badgeAll">0</span>
+            </button>
+            <button class="sidebar-tab" data-filter="academic" onclick="filterQueue('academic', this)">
+              Học tập
+            </button>
+            <button class="sidebar-tab" data-filter="psychology" onclick="filterQueue('psychology', this)">
+              Tâm lý
+            </button>
+          </div>
+        </div>
+        <div class="queue-list" id="queueList">
+          <div class="empty-chat" id="emptyQueue" style="padding: 2rem;">
+            <div class="empty-icon"></div>
+            <p style="font-size: 0.85rem;">Chưa có sinh viên nào</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Chat Area -->
+      <div class="admin-chat-area" id="adminChatArea">
+        <!-- Empty state -->
+        <div class="empty-chat" id="emptyChatState">
+          <div class="empty-icon"></div>
+          <p>Chọn một sinh viên từ danh sách để bắt đầu tư vấn</p>
+        </div>
+
+        <!-- Active Chat -->
+        <div id="activeChatContainer">
+          <div class="admin-chat-header">
+            <div class="admin-chat-header-info">
+              <div class="queue-item-avatar" id="activeChatAvatar">?</div>
+              <div>
+                <h3 id="activeChatName">--</h3>
+                <p id="activeChatDetail">--</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-success" id="acceptBtn" onclick="acceptChat()"
+                style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+                Nhận tư vấn
+              </button>
+              <button class="btn btn-danger" id="endChatBtn" onclick="endCurrentChat()"
+                style="font-size: 0.85rem; padding: 0.5rem 1rem; display: none;">
+                Kết thúc
+              </button>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div class="chat-messages" id="adminChatMessages">
+            <div class="typing-indicator" id="adminTypingIndicator">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <!-- Chat Input (hidden until accepted) -->
+          <div class="chat-input-area" id="adminInputArea" style="display: none;">
+            <div class="chat-input-wrapper">
+              <textarea class="chat-input" id="adminMessageInput" placeholder="Nhập tin nhắn..." rows="1"
+                onkeydown="handleAdminKeyDown(event)"></textarea>
+              <button class="send-btn" onclick="sendAdminMessage()">➤</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+
+</html>
